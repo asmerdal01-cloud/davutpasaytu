@@ -8,6 +8,9 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
   <style>
     * {
@@ -85,9 +88,7 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    input[type="search"]:focus {
-      border-color: #2e7d32;
-    }
+    input[type="search"]:focus { border-color: #2e7d32; }
 
     .clear-btn {
       position: absolute;
@@ -314,8 +315,9 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS & MarkerCluster JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <script>
     const statusBar = document.getElementById('statusBar');
@@ -323,13 +325,12 @@
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const toolsDropdown = document.getElementById('toolsDropdown');
 
-    let map, satelliteLayer, streetLayer, markersLayer;
+    let map, satelliteLayer, streetLayer, markersCluster;
     let treeIndex = {};
     let lastHighlightedMarker = null;
     let userLocationMarker = null;
     let userAccuracyCircle = null;
 
-    // Haritayı Başlat
     function initMap() {
       try {
         satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -352,7 +353,14 @@
           layers: [satelliteLayer]
         });
 
-        markersLayer = L.featureGroup().addTo(map);
+        // Kümeleme (Cluster) katmanı: 6000+ noktada donmayı önler
+        markersCluster = L.markerClusterGroup({
+          maxClusterRadius: 40,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true
+        });
+        map.addLayer(markersCluster);
 
         map.on('click', () => {
           toolsDropdown.classList.remove('open');
@@ -438,7 +446,6 @@
       return parseFloat(s);
     }
 
-    // Genişletilmiş EPSG:5254 (TM30) -> WGS84 Dönüşüm Motoru
     function tm30ToWGS84(easting, northing) {
       const a = 6378137.0;
       const f = 1 / 298.257222101;
@@ -488,7 +495,7 @@
 
     function parseAndRenderCSV(rawText, sourceName = "Veri") {
       if (!map) return;
-      markersLayer.clearLayers();
+      markersCluster.clearLayers();
       treeIndex = {};
       lastHighlightedMarker = null;
       let count = 0;
@@ -505,6 +512,8 @@
       else if (sampleLine.includes('\t')) delimiter = '\t';
       else if (!sampleLine.includes(',') && /\s+/.test(sampleLine)) delimiter = /\s+/;
 
+      const newMarkers = [];
+
       lines.forEach((line) => {
         const cols = line.split(delimiter).map(c => c.replace(/^["']|["']$/g, '').trim());
         if (cols.length < 2) return;
@@ -516,7 +525,6 @@
           const val = parseNumber(cols[i]);
           if (isNaN(val)) continue;
 
-          // Sınırlar genişletildi: Sağa (100.000 - 900.000), Yukarı (3.500.000 - 5.000.000)
           if (val >= 100000 && val <= 900000 && easting === null) {
             easting = val; eastIdx = i;
           } else if (val >= 3500000 && val <= 5000000 && northing === null) {
@@ -571,15 +579,17 @@
           </div>
         `);
 
-        markersLayer.addLayer(marker);
+        newMarkers.push(marker);
         treeIndex[treeId.toLowerCase()] = marker;
         count++;
       });
 
       if (count > 0) {
-        map.fitBounds(markersLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
+        // Toplu ekleme ile tarayıcının donması engellenir
+        markersCluster.addLayers(newMarkers);
+        map.fitBounds(markersCluster.getBounds(), { padding: [50, 50], maxZoom: 19 });
         statusBar.style.color = "#1b5e20";
-        statusBar.innerText = `✅ ${sourceName}: ${count} ağaç başarıyla yüklendi`;
+        statusBar.innerText = `✅ ${sourceName}: ${count} ağaç yüklendi ve optimize edildi`;
       } else {
         statusBar.style.color = "#d32f2f";
         statusBar.innerText = `⚠️ Geçerli EPSG:5254 koordinatı bulunamadı!`;
@@ -600,17 +610,29 @@
 
       const target = treeIndex[query];
       if (target) {
-        map.flyTo(target.getLatLng(), 21, { duration: 0.7 });
-        target.setStyle({ fillColor: '#d32f2f', radius: 11 });
-        const tooltipEl = target.getTooltip()?.getElement();
-        if (tooltipEl) tooltipEl.classList.add('highlight-label');
-        target.openPopup();
-        lastHighlightedMarker = target;
+        // Eğer aranan ağaç küme içindeyse kümeden çıkarıp göster
+        if (markersCluster.hasLayer(target)) {
+          markersCluster.zoomToShowLayer(target, () => {
+            map.setView(target.getLatLng(), 21, { duration: 0.7 });
+            highlightFoundMarker(target);
+          });
+        } else {
+          map.setView(target.getLatLng(), 21, { duration: 0.7 });
+          highlightFoundMarker(target);
+        }
         statusBar.style.color = "#1b5e20";
         statusBar.innerText = `🎯 Ağaç No: ${searchInput.value.trim()} gösteriliyor`;
       } else {
         alert(`"${searchInput.value.trim()}" numaralı ağaç bulunamadı!`);
       }
+    }
+
+    function highlightFoundMarker(target) {
+      target.setStyle({ fillColor: '#d32f2f', radius: 11 });
+      const tooltipEl = target.getTooltip()?.getElement();
+      if (tooltipEl) tooltipEl.classList.add('highlight-label');
+      target.openPopup();
+      lastHighlightedMarker = target;
     }
 
     function clearSearch() {
@@ -636,8 +658,8 @@
 
     function resetView() {
       searchInput.blur();
-      if (markersLayer && markersLayer.getLayers().length > 0) {
-        map.fitBounds(markersLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
+      if (markersCluster && markersCluster.getLayers().length > 0) {
+        map.fitBounds(markersCluster.getBounds(), { padding: [50, 50], maxZoom: 19 });
       }
     }
 
@@ -670,6 +692,7 @@
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
+      toolsTools = document.getElementById('toolsDropdown');
       toolsDropdown.classList.remove('open');
       const reader = new FileReader();
       reader.onload = function(evt) {
