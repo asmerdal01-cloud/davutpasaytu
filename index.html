@@ -5,17 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ağaç Envanter Haritası (EPSG:5254)</title>
   
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet CSS (Cloudflare CDN + Yedek) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body, html { height: 100%; width: 100%; overflow: hidden; }
-    #map { height: 100%; width: 100%; z-index: 1; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: #e5e3df; }
+    
+    /* Harita Katmanı (Tam Ekran Garanti) */
+    #map {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
 
     /* Üst Kontrol Paneli */
     .control-panel {
-      position: absolute;
+      position: fixed;
       top: 12px;
       left: 55px;
       right: 12px;
@@ -33,18 +42,17 @@
       background: rgba(255, 255, 255, 0.95);
       padding: 6px;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
       pointer-events: auto;
       align-items: center;
     }
 
-    /* Arama Kutusu ve Butonlar */
     input[type="text"] {
       padding: 8px 12px;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 14px;
-      width: 170px;
+      width: 180px;
       outline: none;
     }
     input[type="text"]:focus { border-color: #2e7d32; }
@@ -64,29 +72,24 @@
       gap: 5px;
     }
     button:hover, .file-label:hover { background: #e0e0e0; }
-
     button.primary { background: #2e7d32; color: #fff; }
     button.primary:hover { background: #1b5e20; }
-
-    button.active-layer {
-      background: #1565c0;
-      color: white;
-    }
+    button.active-layer { background: #1565c0; color: #fff; }
 
     /* Sürekli Görünen Ağaç Numarası Etiketleri */
     .leaflet-tooltip.tree-label {
-      background-color: rgba(20, 30, 20, 0.85);
+      background-color: rgba(20, 30, 20, 0.88);
       border: 1.5px solid #4caf50;
       color: #ffffff;
       font-weight: 700;
       font-size: 11px;
       padding: 1px 5px;
       border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
       white-space: nowrap;
     }
     .leaflet-tooltip-top.tree-label::before {
-      border-top-color: rgba(20, 30, 20, 0.85);
+      border-top-color: rgba(20, 30, 20, 0.88);
     }
 
     /* Aranan Ağaç Vurgusu */
@@ -97,19 +100,19 @@
       z-index: 9999 !important;
     }
 
-    /* Durum Bilgisi (Sol Alt) */
+    /* Sol Alt Durum Çubuğu */
     .status-bar {
-      position: absolute;
+      position: fixed;
       bottom: 20px;
       left: 12px;
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px 14px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 600;
-      color: #333;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      color: #222;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
 
     #csvFileInput { display: none; }
@@ -125,38 +128,33 @@
 
   <!-- Üst Kontroller -->
   <div class="control-panel">
-    <!-- Arama Grubu -->
     <div class="panel-group">
       <input type="text" id="searchInput" placeholder="Ağaç No Ara (Örn: 104)" />
-      <button class="primary" id="searchBtn" onclick="searchTree()">🔍 Ara</button>
-      <button onclick="resetView()" title="Tüm Ağaçları Göster">🔄 Tümü</button>
+      <button class="primary" onclick="searchTree()">🔍 Ara</button>
+      <button onclick="resetView()">🔄 Tümü</button>
     </div>
 
-    <!-- Altlık Harita ve Veri Grubu -->
     <div class="panel-group">
       <button id="btnSat" class="active-layer" onclick="setLayer('sat')">🛰️ Uydu</button>
       <button id="btnOsm" onclick="setLayer('osm')">🗺️ StreetMap</button>
-      <label for="csvFileInput" class="file-label" title="Farklı bir CSV dosyası test et">📁 CSV Seç</label>
-      <input type="file" id="csvFileInput" accept=".csv" />
+      <label for="csvFileInput" class="file-label">📁 CSV Seç</label>
+      <input type="file" id="csvFileInput" accept=".csv,.txt" />
     </div>
   </div>
 
-  <!-- Harita Alanı -->
+  <!-- Harita -->
   <div id="map"></div>
 
-  <!-- Bilgi Çubuğu -->
-  <div class="status-bar" id="statusBar">Veri yükleniyor...</div>
+  <!-- Durum Çubuğu -->
+  <div class="status-bar" id="statusBar">Harita başlatılıyor...</div>
 
-  <!-- Kütüphaneler: Leaflet, Proj4js, PapaParse -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Leaflet JS (Cloudflare CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
   <script>
-    // 1. EPSG:5254 (TUREF / TM30) Projeksiyon Tanımı
-    proj4.defs("EPSG:5254", "+proj=tmerc +lat_0=0 +lon_0=30 +k=1 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+    const statusBar = document.getElementById('statusBar');
 
-    // 2. Harita Katmanları (22. Zoom seviyesine kadar yakınlaşma destekli)
+    // 1. Harita Katmanlarını Başlat
     const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       maxZoom: 22,
       maxNativeZoom: 20,
@@ -169,22 +167,21 @@
       attribution: '© OpenStreetMap'
     });
 
-    // Haritayı Başlat (Varsayılan: Uydu Katmanı)
     const map = L.map('map', {
       center: [41.048, 29.015],
-      zoom: 16,
+      zoom: 15,
       maxZoom: 22,
       layers: [satelliteLayer]
     });
 
     const markersLayer = L.featureGroup().addTo(map);
-    let treeIndex = {}; // Ağaç numarasına göre hızlı arama dizini
+    let treeIndex = {};
+    let lastHighlightedMarker = null;
 
-    // 3. Uydu / StreetMap Geçiş Fonksiyonu
+    // 2. Uydu / StreetMap Geçişi
     function setLayer(type) {
       const btnSat = document.getElementById('btnSat');
       const btnOsm = document.getElementById('btnOsm');
-
       if (type === 'sat') {
         map.removeLayer(streetLayer);
         map.addLayer(satelliteLayer);
@@ -198,26 +195,219 @@
       }
     }
 
-    // 4. EPSG:5254 -> WGS84 (Enlem/Boylam) Akıllı Dönüştürücü
-    function convert5254ToWGS84(val1, val2) {
-      let c1 = parseFloat(String(val1).replace(',', '.'));
-      let c2 = parseFloat(String(val2).replace(',', '.'));
+    // 3. Dahili EPSG:5254 (TUREF / TM30) -> WGS84 Dönüştürücü (Dış kütüphane gerektirmez)
+    function epsg5254ToWGS84(val1, val2) {
+      const parseCoord = (v) => {
+        if (v === undefined || v === null) return NaN;
+        let s = String(v).trim().replace(/\s/g, '');
+        // Eğer hem nokta hem virgül varsa (örn: 4.546.310,20) noktaları sil, virgülü nokta yap
+        if (s.includes('.') && s.includes(',')) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(',', '.');
+        }
+        return parseFloat(s);
+      };
+
+      const c1 = parseCoord(val1);
+      const c2 = parseCoord(val2);
       if (isNaN(c1) || isNaN(c2)) return null;
 
-      // Türkiye'de Kuzey (Yukarı) ~4.000.000+, Doğu (Sağa) ~300.000-700.000 arasındadır.
-      // Sütun sırası karışsa bile otomatik doğru eksene atar:
+      // Türkiye koordinatlarında Yukarı (X) > 3.900.000, Sağa (Y) < 1.000.000'dir
       let easting, northing;
       if (c1 > 1000000 && c2 < 1000000) {
-        northing = c1;
-        easting = c2;
+        northing = c1; easting = c2;
+      } else if (c2 > 1000000 && c1 < 1000000) {
+        easting = c1; northing = c2;
       } else {
-        easting = c1;
-        northing = c2;
+        return null;
       }
 
-      // proj4(kaynak, hedef, [Doğu/Sağa, Kuzey/Yukarı]) -> [Boylam, Enlem]
-      const [lng, lat] = proj4("EPSG:5254", "EPSG:4326", [easting, northing]);
-      return { lat, lng, easting, northing };
+      // GRS80 Elipsoid Sabitleri (EPSG:5254 / TM30: lon_0 = 30, k_0 = 1, x_0 = 500000, y_0 = 0)
+      const a = 6378137.0;
+      const f = 1 / 298.257222101;
+      const e2 = 2 * f - f * f;
+      const ep2 = e2 / (1 - e2);
+      const lon0 = 30.0 * Math.PI / 180.0;
+
+      const x = easting - 500000.0;
+      const y = northing;
+
+      const mu = y / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256));
+      const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+
+      const phi1 = mu
+        + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu)
+        + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu)
+        + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu)
+        + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+
+      const sinPhi1 = Math.sin(phi1);
+      const cosPhi1 = Math.cos(phi1);
+      const tanPhi1 = Math.tan(phi1);
+
+      const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
+      const T1 = tanPhi1 * tanPhi1;
+      const C1 = ep2 * cosPhi1 * cosPhi1;
+      const R1 = a * (1 - e2) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
+      const D = x / N1;
+
+      const latRad = phi1 - (N1 * tanPhi1 / R1) * (
+        (D * D) / 2
+        - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24
+        + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720
+      );
+
+      const lngRad = lon0 + (
+        D
+        - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6
+        + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120
+      ) / cosPhi1;
+
+      return {
+        lat: latRad * 180.0 / Math.PI,
+        lng: lngRad * 180.0 / Math.PI,
+        easting,
+        northing
+      };
     }
 
-    // 5. Ağaçları Har
+    // 4. Akıllı CSV Okuyucu (Noktalı virgül, virgül veya sekme ayrımını otomatik algılar)
+    function parseAndRenderCSV(csvText) {
+      markersLayer.clearLayers();
+      treeIndex = {};
+      let count = 0;
+
+      const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) {
+        statusBar.innerText = "CSV dosyası boş!";
+        return;
+      }
+
+      // Ayraç tespiti (; mi, \t mi, yoksa , mü?)
+      const firstLine = lines[0];
+      let delimiter = ',';
+      if (firstLine.includes(';')) delimiter = ';';
+      else if (firstLine.includes('\t')) delimiter = '\t';
+
+      lines.forEach((line, index) => {
+        const cols = line.split(delimiter).map(c => c.replace(/^["']|["']$/g, '').trim());
+        if (cols.length < 3) return;
+
+        // Satır içindeki Sağa (200.000-800.000) ve Yukarı (3.900.000-4.900.000) koordinatlarını otomatik bul
+        let id = cols[0];
+        let coord1 = cols[1];
+        let coord2 = cols[2];
+        let species = cols[3] || '-';
+
+        const converted = epsg5254ToWGS84(coord1, coord2);
+        if (!converted) return; // Başlık satırıysa otomatik atlar
+
+        const marker = L.circleMarker([converted.lat, converted.lng], {
+          radius: 6,
+          fillColor: '#4caf50',
+          color: '#ffffff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.9
+        });
+
+        marker.bindTooltip(id, {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -6],
+          className: 'tree-label'
+        });
+
+        marker.bindPopup(`
+          <div style="font-size:13px; line-height:1.5;">
+            <strong style="font-size:15px; color:#2e7d32;">🌳 Ağaç No: ${id}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #ddd;">
+            <b>Tür / Bilgi:</b> ${species}<br>
+            <b>Sağa (Y):</b> ${converted.easting.toFixed(2)} m<br>
+            <b>Yukarı (X):</b> ${converted.northing.toFixed(2)} m<br>
+            <b>WGS84:</b> ${converted.lat.toFixed(6)}, ${converted.lng.toFixed(6)}<br>
+            <a href="https://www.google.com/maps?q=${converted.lat},${converted.lng}" target="_blank" style="display:inline-block; margin-top:6px; color:#1565c0; font-weight:600; text-decoration:none;">📍 Google Haritalar'da Aç</a>
+          </div>
+        `);
+
+        markersLayer.addLayer(marker);
+        treeIndex[id.toLowerCase()] = marker;
+        count++;
+      });
+
+      if (count > 0) {
+        map.fitBounds(markersLayer.getBounds(), { padding: [40, 40], maxZoom: 19 });
+        statusBar.innerText = `✅ Toplam ${count} ağaç yüklendi (EPSG:5254)`;
+      } else {
+        statusBar.innerText = `⚠️ CSV okundu ancak geçerli EPSG:5254 koordinatı bulunamadı!`;
+      }
+    }
+
+    // 5. Ağaç Numarası Arama
+    function searchTree() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (!query) return;
+
+      if (lastHighlightedMarker) {
+        lastHighlightedMarker.setStyle({ fillColor: '#4caf50', radius: 6 });
+        const el = lastHighlightedMarker.getTooltip()?.getElement();
+        if (el) el.classList.remove('highlight-label');
+      }
+
+      const targetMarker = treeIndex[query];
+      if (targetMarker) {
+        map.flyTo(targetMarker.getLatLng(), 21, { duration: 0.8 });
+        targetMarker.setStyle({ fillColor: '#d32f2f', radius: 10 });
+        const tooltipEl = targetMarker.getTooltip()?.getElement();
+        if (tooltipEl) tooltipEl.classList.add('highlight-label');
+        targetMarker.openPopup();
+        lastHighlightedMarker = targetMarker;
+      } else {
+        alert(`"${document.getElementById('searchInput').value}" numaralı ağaç bulunamadı!`);
+      }
+    }
+
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') searchTree();
+    });
+
+    function resetView() {
+      if (markersLayer.getLayers().length > 0) {
+        map.fitBounds(markersLayer.getBounds(), { padding: [40, 40], maxZoom: 19 });
+      }
+    }
+
+    // 6. GitHub'daki agaclar.csv Dosyasını Yükle (Önbellek Korumalı)
+    const sampleCSV = `no;saga;yukari;tur
+101;417245.50;4546310.20;Pinus pinea (Fıstık Çamı)
+102;417258.10;4546318.80;Platanus orientalis (Doğu Çınarı)
+103;417270.40;4546305.10;Quercus robur (Saplı Meşe)
+104;417235.90;4546295.60;Cedrus libani (Toros Sediri)
+105;417250.00;4546288.30;Tilia tomentosa (Gümüşi Ihlamur)`;
+
+    fetch('agaclar.csv?t=' + Date.now())
+      .then(res => {
+        if (!res.ok) throw new Error("agaclar.csv bulunamadı");
+        return res.text();
+      })
+      .then(text => {
+        parseAndRenderCSV(text);
+      })
+      .catch(() => {
+        parseAndRenderCSV(sampleCSV);
+        statusBar.innerText = "ℹ️ Örnek veri gösteriliyor (Sağ üstten CSV Seç ile kendi dosyanızı yükleyebilirsiniz)";
+      });
+
+    // 7. Sağ Üstteki "CSV Seç" Butonu ile Bilgisayardan Dosya Yükleme
+    document.getElementById('csvFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        parseAndRenderCSV(evt.target.result);
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  </script>
+</body>
+</html>
