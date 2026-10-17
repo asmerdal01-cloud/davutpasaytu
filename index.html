@@ -4,12 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1b5e20">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Ağaç Envanter Haritası (EPSG:5254)</title>
 
-  <!-- Yedekli Leaflet CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
@@ -38,7 +35,7 @@
       background: #cfd8dc;
     }
 
-    /* Üst Kontrol Paneli (Masaüstü & Mobil Uyumlu) */
+    /* Üst Kontrol Paneli */
     .top-bar {
       position: fixed;
       top: max(10px, env(safe-area-inset-top));
@@ -65,7 +62,6 @@
       pointer-events: auto;
     }
 
-    /* Arama Kutusu - 16px mobil tarayıcıların otomatik zoom yapmasını engeller */
     .search-group {
       flex: 1 1 280px;
       max-width: 420px;
@@ -105,7 +101,6 @@
       display: none;
     }
 
-    /* Butonlar */
     button, .file-label {
       padding: 9px 12px;
       border: none;
@@ -123,25 +118,12 @@
       white-space: nowrap;
       user-select: none;
     }
-    button:active, .file-label:active {
-      transform: scale(0.96);
-    }
-    button.primary {
-      background: #2e7d32;
-      color: #fff;
-    }
-    button.primary:hover {
-      background: #1b5e20;
-    }
-    button.active-layer {
-      background: #1565c0;
-      color: #fff;
-    }
+    button:active, .file-label:active { transform: scale(0.96); }
+    button.primary { background: #2e7d32; color: #fff; }
+    button.primary:hover { background: #1b5e20; }
+    button.active-layer { background: #1565c0; color: #fff; }
 
-    /* Katman ve Araçlar Grubu */
-    .layer-group {
-      position: relative;
-    }
+    .layer-group { position: relative; }
 
     .tools-dropdown {
       display: none;
@@ -157,9 +139,7 @@
       min-width: 170px;
       z-index: 1001;
     }
-    .tools-dropdown.open {
-      display: flex;
-    }
+    .tools-dropdown.open { display: flex; }
     .tools-dropdown button, .tools-dropdown .file-label {
       width: 100%;
       justify-content: flex-start;
@@ -167,7 +147,7 @@
       font-size: 13px;
     }
 
-    /* Sağ Alt Yüzen Kontroller (GPS + Zoom) */
+    /* Sağ Alt Yüzen Kontroller */
     .floating-right {
       position: fixed;
       right: 12px;
@@ -192,10 +172,7 @@
       cursor: pointer;
       border: none;
     }
-    .fab-btn.gps-active {
-      background: #1565c0;
-      color: #fff;
-    }
+    .fab-btn.gps-active { background: #1565c0; color: #fff; }
 
     /* Sürekli Görünen Ağaç Numarası Etiketleri */
     .leaflet-tooltip.tree-label {
@@ -214,7 +191,6 @@
       border-top-color: rgba(20, 35, 20, 0.9);
     }
 
-    /* Aranan Ağaç Vurgusu */
     .leaflet-tooltip.tree-label.highlight-label {
       background-color: #d32f2f;
       border: 2px solid #ffeb3b;
@@ -228,7 +204,6 @@
       position: fixed;
       bottom: max(12px, env(safe-area-inset-bottom));
       left: 12px;
-      right: 70px;
       z-index: 1000;
       background: rgba(255, 255, 255, 0.95);
       padding: 7px 12px;
@@ -237,7 +212,6 @@
       font-weight: 600;
       color: #1b5e20;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      width: fit-content;
       max-width: calc(100vw - 85px);
       white-space: nowrap;
       overflow: hidden;
@@ -245,7 +219,6 @@
       pointer-events: none;
     }
 
-    /* Veri Yapıştırma Penceresi */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -285,26 +258,12 @@
 
     #csvFileInput { display: none; }
 
-    /* Mobil Ekran Düzeni */
     @media (max-width: 640px) {
-      .top-bar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-      }
-      .search-group {
-        max-width: 100%;
-        flex: none;
-      }
-      .layer-group {
-        justify-content: space-between;
-      }
-      .layer-group > button {
-        flex: 1;
-      }
-      .layer-group > button.icon-only {
-        flex: 0 0 40px;
-      }
+      .top-bar { flex-direction: column; align-items: stretch; gap: 6px; }
+      .search-group { max-width: 100%; flex: none; }
+      .layer-group { justify-content: space-between; }
+      .layer-group > button { flex: 1; }
+      .layer-group > button.icon-only { flex: 0 0 40px; }
     }
   </style>
 </head>
@@ -312,7 +271,6 @@
 
   <!-- Üst Kontrol Paneli -->
   <div class="top-bar">
-    <!-- Arama Kartı -->
     <div class="control-card search-group">
       <div class="search-input-wrap">
         <input type="search" id="searchInput" placeholder="Ağaç No Ara (Örn: 104)" enterkeyhint="search" autocomplete="off" />
@@ -322,13 +280,11 @@
       <button onclick="resetView()" title="Tüm Ağaçları Göster">🔄 Tümü</button>
     </div>
 
-    <!-- Altlık Harita ve Veri Menüsü Kartı -->
     <div class="control-card layer-group">
       <button id="btnSat" class="active-layer" onclick="setLayer('sat')">🛰️ Uydu</button>
       <button id="btnOsm" onclick="setLayer('osm')">🗺️ Sokak</button>
       <button class="icon-only" onclick="toggleToolsMenu(event)" title="Veri Yükleme Araçları">⚙️</button>
 
-      <!-- Açılır Veri Menüsü -->
       <div class="tools-dropdown" id="toolsDropdown">
         <label for="csvFileInput" class="file-label">📁 CSV / TXT Dosya Seç</label>
         <input type="file" id="csvFileInput" accept=".csv,.txt,.ncn" />
@@ -337,31 +293,29 @@
     </div>
   </div>
 
-  <!-- Sağ Alt Mobil Dostu Butonlar (GPS + Yakınlaştırma) -->
   <div class="floating-right">
     <button class="fab-btn" id="gpsBtn" onclick="locateUser()" title="Canlı Konumumu Bul">📍</button>
     <button class="fab-btn" onclick="map && map.zoomIn()" title="Yakınlaş">➕</button>
     <button class="fab-btn" onclick="map && map.zoomOut()" title="Uzaklaş">➖</button>
   </div>
 
-  <!-- Harita Alanı -->
   <div id="map"></div>
-
-  <!-- Sol Alt Durum Çubuğu -->
   <div class="status-bar" id="statusBar">⏳ Harita yükleniyor...</div>
 
-  <!-- Koordinat Yapıştırma Penceresi -->
   <div class="modal-overlay" id="pasteModal">
     <div class="modal-box">
       <h3>📋 Koordinat Verisi Yapıştır</h3>
-      <p>Excel, Netcad veya CSV'den kopyaladığınız satırları aşağıya yapıştırın (EPSG:5254 Sağa ve Yukarı sütunları otomatik algılanır):</p>
-      <textarea id="pasteArea" placeholder="101;417245.50;4546310.20;Fıstık Çamı&#10;102;417258.10;4546318.80;Doğu Çınarı"></textarea>
+      <p>Excel veya CSV'den kopyaladığınız satırları buraya yapıştırın:</p>
+      <textarea id="pasteArea" placeholder="1;407339.246;4543501.436;Fix"></textarea>
       <div class="modal-actions">
         <button onclick="closePasteModal()">İptal</button>
         <button class="primary" onclick="applyPastedData()">Haritada Göster</button>
       </div>
     </div>
   </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
     const statusBar = document.getElementById('statusBar');
@@ -375,28 +329,7 @@
     let userLocationMarker = null;
     let userAccuracyCircle = null;
 
-    // 1. 3 Yedekli Leaflet Yükleyici
-    const cdnList = [
-      "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
-      "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
-    ];
-
-    function loadLeaflet(index) {
-      if (window.L) { initMap(); return; }
-      if (index >= cdnList.length) {
-        statusBar.style.color = "#d32f2f";
-        statusBar.innerText = "❌ Harita yüklenemedi! İnternet bağlantınızı kontrol edin.";
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = cdnList[index];
-      script.onload = () => initMap();
-      script.onerror = () => loadLeaflet(index + 1);
-      document.head.appendChild(script);
-    }
-
-    // 2. Haritayı Başlat (Varsayılan Zoom Butonları Kapalı - Sağ Alta Özel Eklendi)
+    // Haritayı Başlat
     function initMap() {
       try {
         satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -421,7 +354,6 @@
 
         markersLayer = L.featureGroup().addTo(map);
 
-        // Haritaya tıklanınca açık menüyü kapat
         map.on('click', () => {
           toolsDropdown.classList.remove('open');
         });
@@ -434,7 +366,6 @@
       }
     }
 
-    // 3. Uydu / Sokak Haritası Geçişi
     function setLayer(type) {
       if (!map) return;
       const btnSat = document.getElementById('btnSat');
@@ -452,7 +383,6 @@
       }
     }
 
-    // 4. Canlı GPS Konumu Bulucu (Saha Kullanımı İçin)
     function locateUser() {
       if (!map) return;
       const gpsBtn = document.getElementById('gpsBtn');
@@ -491,7 +421,6 @@
       });
     }
 
-    // 5. Sayı Çözücü ve EPSG:5254 (TUREF / TM30) -> WGS84 Dönüşüm Motoru
     function parseNumber(val) {
       if (val === undefined || val === null) return NaN;
       let s = String(val).trim().replace(/^["']|["']$/g, '').trim();
@@ -509,6 +438,7 @@
       return parseFloat(s);
     }
 
+    // Genişletilmiş EPSG:5254 (TM30) -> WGS84 Dönüşüm Motoru
     function tm30ToWGS84(easting, northing) {
       const a = 6378137.0;
       const f = 1 / 298.257222101;
@@ -556,7 +486,6 @@
       };
     }
 
-    // 6. Akıllı CSV Çözümleyici ve Haritaya Çizici
     function parseAndRenderCSV(rawText, sourceName = "Veri") {
       if (!map) return;
       markersLayer.clearLayers();
@@ -587,9 +516,10 @@
           const val = parseNumber(cols[i]);
           if (isNaN(val)) continue;
 
-          if (val >= 150000 && val <= 850000 && easting === null) {
+          // Sınırlar genişletildi: Sağa (100.000 - 900.000), Yukarı (3.500.000 - 5.000.000)
+          if (val >= 100000 && val <= 900000 && easting === null) {
             easting = val; eastIdx = i;
-          } else if (val >= 3800000 && val <= 4850000 && northing === null) {
+          } else if (val >= 3500000 && val <= 5000000 && northing === null) {
             northing = val; northIdx = i;
           } else if (val >= 35 && val <= 43 && wgsLat === null) {
             wgsLat = val;
@@ -634,10 +564,9 @@
           <div style="font-size:13px; line-height:1.5; min-width:180px;">
             <strong style="font-size:15px; color:#2e7d32;">🌳 Ağaç No: ${treeId}</strong>
             <hr style="margin:5px 0; border:0; border-top:1px solid #e0e0e0;">
-            <b>Tür / Bilgi:</b> ${extraInfo}<br>
+            <b>Bilgi:</b> ${extraInfo}<br>
             <b>Sağa (Y):</b> ${easting.toFixed(2)} m<br>
             <b>Yukarı (X):</b> ${northing.toFixed(2)} m<br>
-            <b>WGS84:</b> ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}<br>
             <a href="https://www.google.com/maps?q=${finalLat},${finalLng}" target="_blank" style="display:inline-block; margin-top:8px; padding:6px 10px; background:#1565c0; color:#fff; border-radius:6px; font-weight:600; text-decoration:none; font-size:12px;">📍 Google Haritalar'da Yol Tarifi</a>
           </div>
         `);
@@ -650,19 +579,17 @@
       if (count > 0) {
         map.fitBounds(markersLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
         statusBar.style.color = "#1b5e20";
-        statusBar.innerText = `✅ ${sourceName}: ${count} ağaç yüklendi`;
+        statusBar.innerText = `✅ ${sourceName}: ${count} ağaç başarıyla yüklendi`;
       } else {
         statusBar.style.color = "#d32f2f";
         statusBar.innerText = `⚠️ Geçerli EPSG:5254 koordinatı bulunamadı!`;
       }
     }
 
-    // 7. Ağaç Numarası Arama & Mobil Klavye Kapatma
     function searchTree() {
       const query = searchInput.value.trim().toLowerCase();
       if (!query) return;
 
-      // Mobilde aramaya basınca klavyeyi kapat
       searchInput.blur();
 
       if (lastHighlightedMarker) {
@@ -714,13 +641,9 @@
       }
     }
 
-    // 8. GitHub'daki CSV Dosyasını Otomatik Çek
     const sampleCSV = `no;saga;yukari;tur
-101;417245.50;4546310.20;Pinus pinea (Fıstık Çamı)
-102;417258.10;4546318.80;Platanus orientalis (Doğu Çınarı)
-103;417270.40;4546305.10;Quercus robur (Saplı Meşe)
-104;417235.90;4546295.60;Cedrus libani (Toros Sediri)
-105;417250.00;4546288.30;Tilia tomentosa (Gümüşi Ihlamur)`;
+1;407339.246;4543501.436;Fix
+2;407336.365;4543504.185;Fix`;
 
     async function loadInitialData() {
       const possibleFiles = ['agaclar.csv', 'Agaclar.csv', 'AGACLAR.csv', 'agaclar.txt'];
@@ -736,10 +659,9 @@
           }
         } catch (e) {}
       }
-      parseAndRenderCSV(sampleCSV, "Örnek Veri (⚙️ menüsünden CSV yükleyin)");
+      parseAndRenderCSV(sampleCSV, "Örnek Veri");
     }
 
-    // 9. Veri Yükleme Menüsü ve Modal Kontrolleri
     function toggleToolsMenu(e) {
       e.stopPropagation();
       toolsDropdown.classList.toggle('open');
@@ -774,7 +696,7 @@
     }
 
     // Başlat
-    loadLeaflet(0);
+    initMap();
   </script>
 </body>
 </html>
