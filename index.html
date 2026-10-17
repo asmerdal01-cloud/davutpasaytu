@@ -2,32 +2,48 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b5e20">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Ağaç Envanter Haritası (EPSG:5254)</title>
-  
-  <!-- Leaflet CSS (Cloudflare CDN + Yedek) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  
+
+  <!-- Yedekli Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    html, body { height: 100%; width: 100%; overflow: hidden; background: #e5e3df; }
-    
-    /* Harita Katmanı (Tam Ekran Garanti) */
-    #map {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: 1;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Üst Kontrol Paneli */
-    .control-panel {
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: #cfd8dc;
+    }
+
+    #map {
       position: fixed;
-      top: 12px;
-      left: 55px;
-      right: 12px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: #cfd8dc;
+    }
+
+    /* Üst Kontrol Paneli (Masaüstü & Mobil Uyumlu) */
+    .top-bar {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      left: 10px;
+      right: 10px;
       z-index: 1000;
       display: flex;
       flex-wrap: wrap;
@@ -36,150 +52,391 @@
       pointer-events: none;
     }
 
-    .panel-group {
+    .control-card {
       display: flex;
+      align-items: center;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       padding: 6px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.22);
       pointer-events: auto;
+    }
+
+    /* Arama Kutusu - 16px mobil tarayıcıların otomatik zoom yapmasını engeller */
+    .search-group {
+      flex: 1 1 280px;
+      max-width: 420px;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
       align-items: center;
     }
 
-    input[type="text"] {
-      padding: 8px 12px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-      width: 180px;
+    input[type="search"] {
+      width: 100%;
+      padding: 9px 30px 9px 12px;
+      border: 1.5px solid #cfd8dc;
+      border-radius: 8px;
+      font-size: 16px;
+      color: #263238;
+      background: #fff;
       outline: none;
+      transition: border-color 0.2s;
     }
-    input[type="text"]:focus { border-color: #2e7d32; }
+    input[type="search"]:focus {
+      border-color: #2e7d32;
+    }
 
-    button, .file-label {
-      padding: 8px 14px;
+    .clear-btn {
+      position: absolute;
+      right: 6px;
+      background: none;
       border: none;
-      border-radius: 6px;
-      background: #f0f0f0;
-      color: #333;
-      font-size: 14px;
+      color: #78909c;
+      font-size: 16px;
+      padding: 4px;
+      cursor: pointer;
+      display: none;
+    }
+
+    /* Butonlar */
+    button, .file-label {
+      padding: 9px 12px;
+      border: none;
+      border-radius: 8px;
+      background: #eceff1;
+      color: #263238;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s ease;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 5px;
+      white-space: nowrap;
+      user-select: none;
     }
-    button:hover, .file-label:hover { background: #e0e0e0; }
-    button.primary { background: #2e7d32; color: #fff; }
-    button.primary:hover { background: #1b5e20; }
-    button.active-layer { background: #1565c0; color: #fff; }
+    button:active, .file-label:active {
+      transform: scale(0.96);
+    }
+    button.primary {
+      background: #2e7d32;
+      color: #fff;
+    }
+    button.primary:hover {
+      background: #1b5e20;
+    }
+    button.active-layer {
+      background: #1565c0;
+      color: #fff;
+    }
+
+    /* Katman ve Araçlar Grubu */
+    .layer-group {
+      position: relative;
+    }
+
+    .tools-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #fff;
+      padding: 8px;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      flex-direction: column;
+      gap: 6px;
+      min-width: 170px;
+      z-index: 1001;
+    }
+    .tools-dropdown.open {
+      display: flex;
+    }
+    .tools-dropdown button, .tools-dropdown .file-label {
+      width: 100%;
+      justify-content: flex-start;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    /* Sağ Alt Yüzen Kontroller (GPS + Zoom) */
+    .floating-right {
+      position: fixed;
+      right: 12px;
+      bottom: max(55px, calc(env(safe-area-inset-bottom) + 48px));
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fab-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+      font-size: 18px;
+      color: #263238;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+    }
+    .fab-btn.gps-active {
+      background: #1565c0;
+      color: #fff;
+    }
 
     /* Sürekli Görünen Ağaç Numarası Etiketleri */
     .leaflet-tooltip.tree-label {
-      background-color: rgba(20, 30, 20, 0.88);
-      border: 1.5px solid #4caf50;
-      color: #ffffff;
+      background-color: rgba(20, 35, 20, 0.9);
+      border: 1.5px solid #66bb6a;
+      color: #fff;
       font-weight: 700;
       font-size: 11px;
       padding: 1px 5px;
       border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.45);
       white-space: nowrap;
+      pointer-events: none;
     }
     .leaflet-tooltip-top.tree-label::before {
-      border-top-color: rgba(20, 30, 20, 0.88);
+      border-top-color: rgba(20, 35, 20, 0.9);
     }
 
     /* Aranan Ağaç Vurgusu */
     .leaflet-tooltip.tree-label.highlight-label {
       background-color: #d32f2f;
-      border-color: #ffeb3b;
+      border: 2px solid #ffeb3b;
       font-size: 13px;
+      padding: 2px 7px;
       z-index: 9999 !important;
     }
 
     /* Sol Alt Durum Çubuğu */
     .status-bar {
       position: fixed;
-      bottom: 20px;
+      bottom: max(12px, env(safe-area-inset-bottom));
       left: 12px;
+      right: 70px;
       z-index: 1000;
       background: rgba(255, 255, 255, 0.95);
-      padding: 8px 14px;
-      border-radius: 6px;
+      padding: 7px 12px;
+      border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
-      color: #222;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      color: #1b5e20;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      width: fit-content;
+      max-width: calc(100vw - 85px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+
+    /* Veri Yapıştırma Penceresi */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-box {
+      background: #fff;
+      width: 100%;
+      max-width: 520px;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+    }
+    .modal-box h3 { margin-bottom: 6px; font-size: 16px; color: #263238; }
+    .modal-box p { font-size: 12px; color: #546e7a; margin-bottom: 10px; line-height: 1.4; }
+    .modal-box textarea {
+      width: 100%;
+      height: 160px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 13px;
+      border: 1px solid #cfd8dc;
+      border-radius: 8px;
+      resize: vertical;
+    }
+    .modal-actions {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
     }
 
     #csvFileInput { display: none; }
 
-    @media (max-width: 600px) {
-      .control-panel { left: 12px; top: 60px; flex-direction: column; align-items: stretch; }
-      .panel-group { justify-content: space-between; }
-      input[type="text"] { flex: 1; }
+    /* Mobil Ekran Düzeni */
+    @media (max-width: 640px) {
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+      }
+      .search-group {
+        max-width: 100%;
+        flex: none;
+      }
+      .layer-group {
+        justify-content: space-between;
+      }
+      .layer-group > button {
+        flex: 1;
+      }
+      .layer-group > button.icon-only {
+        flex: 0 0 40px;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Üst Kontroller -->
-  <div class="control-panel">
-    <div class="panel-group">
-      <input type="text" id="searchInput" placeholder="Ağaç No Ara (Örn: 104)" />
+  <!-- Üst Kontrol Paneli -->
+  <div class="top-bar">
+    <!-- Arama Kartı -->
+    <div class="control-card search-group">
+      <div class="search-input-wrap">
+        <input type="search" id="searchInput" placeholder="Ağaç No Ara (Örn: 104)" enterkeyhint="search" autocomplete="off" />
+        <button class="clear-btn" id="clearSearchBtn" onclick="clearSearch()" title="Temizle">✕</button>
+      </div>
       <button class="primary" onclick="searchTree()">🔍 Ara</button>
-      <button onclick="resetView()">🔄 Tümü</button>
+      <button onclick="resetView()" title="Tüm Ağaçları Göster">🔄 Tümü</button>
     </div>
 
-    <div class="panel-group">
+    <!-- Altlık Harita ve Veri Menüsü Kartı -->
+    <div class="control-card layer-group">
       <button id="btnSat" class="active-layer" onclick="setLayer('sat')">🛰️ Uydu</button>
-      <button id="btnOsm" onclick="setLayer('osm')">🗺️ StreetMap</button>
-      <label for="csvFileInput" class="file-label">📁 CSV Seç</label>
-      <input type="file" id="csvFileInput" accept=".csv,.txt" />
+      <button id="btnOsm" onclick="setLayer('osm')">🗺️ Sokak</button>
+      <button class="icon-only" onclick="toggleToolsMenu(event)" title="Veri Yükleme Araçları">⚙️</button>
+
+      <!-- Açılır Veri Menüsü -->
+      <div class="tools-dropdown" id="toolsDropdown">
+        <label for="csvFileInput" class="file-label">📁 CSV / TXT Dosya Seç</label>
+        <input type="file" id="csvFileInput" accept=".csv,.txt,.ncn" />
+        <button onclick="openPasteModal()">📋 Koordinat Yapıştır</button>
+      </div>
     </div>
   </div>
 
-  <!-- Harita -->
+  <!-- Sağ Alt Mobil Dostu Butonlar (GPS + Yakınlaştırma) -->
+  <div class="floating-right">
+    <button class="fab-btn" id="gpsBtn" onclick="locateUser()" title="Canlı Konumumu Bul">📍</button>
+    <button class="fab-btn" onclick="map && map.zoomIn()" title="Yakınlaş">➕</button>
+    <button class="fab-btn" onclick="map && map.zoomOut()" title="Uzaklaş">➖</button>
+  </div>
+
+  <!-- Harita Alanı -->
   <div id="map"></div>
 
-  <!-- Durum Çubuğu -->
-  <div class="status-bar" id="statusBar">Harita başlatılıyor...</div>
+  <!-- Sol Alt Durum Çubuğu -->
+  <div class="status-bar" id="statusBar">⏳ Harita yükleniyor...</div>
 
-  <!-- Leaflet JS (Cloudflare CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Koordinat Yapıştırma Penceresi -->
+  <div class="modal-overlay" id="pasteModal">
+    <div class="modal-box">
+      <h3>📋 Koordinat Verisi Yapıştır</h3>
+      <p>Excel, Netcad veya CSV'den kopyaladığınız satırları aşağıya yapıştırın (EPSG:5254 Sağa ve Yukarı sütunları otomatik algılanır):</p>
+      <textarea id="pasteArea" placeholder="101;417245.50;4546310.20;Fıstık Çamı&#10;102;417258.10;4546318.80;Doğu Çınarı"></textarea>
+      <div class="modal-actions">
+        <button onclick="closePasteModal()">İptal</button>
+        <button class="primary" onclick="applyPastedData()">Haritada Göster</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const statusBar = document.getElementById('statusBar');
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const toolsDropdown = document.getElementById('toolsDropdown');
 
-    // 1. Harita Katmanlarını Başlat
-    const satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-      maxZoom: 22,
-      maxNativeZoom: 20,
-      attribution: '© Google Satellite'
-    });
-
-    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      attribution: '© OpenStreetMap'
-    });
-
-    const map = L.map('map', {
-      center: [41.048, 29.015],
-      zoom: 15,
-      maxZoom: 22,
-      layers: [satelliteLayer]
-    });
-
-    const markersLayer = L.featureGroup().addTo(map);
+    let map, satelliteLayer, streetLayer, markersLayer;
     let treeIndex = {};
     let lastHighlightedMarker = null;
+    let userLocationMarker = null;
+    let userAccuracyCircle = null;
 
-    // 2. Uydu / StreetMap Geçişi
+    // 1. 3 Yedekli Leaflet Yükleyici
+    const cdnList = [
+      "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+      "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+    ];
+
+    function loadLeaflet(index) {
+      if (window.L) { initMap(); return; }
+      if (index >= cdnList.length) {
+        statusBar.style.color = "#d32f2f";
+        statusBar.innerText = "❌ Harita yüklenemedi! İnternet bağlantınızı kontrol edin.";
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = cdnList[index];
+      script.onload = () => initMap();
+      script.onerror = () => loadLeaflet(index + 1);
+      document.head.appendChild(script);
+    }
+
+    // 2. Haritayı Başlat (Varsayılan Zoom Butonları Kapalı - Sağ Alta Özel Eklendi)
+    function initMap() {
+      try {
+        satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          maxZoom: 22,
+          maxNativeZoom: 20,
+          attribution: '© Google Hybrid'
+        });
+
+        streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 22,
+          maxNativeZoom: 19,
+          attribution: '© OpenStreetMap'
+        });
+
+        map = L.map('map', {
+          center: [41.048, 29.015],
+          zoom: 16,
+          maxZoom: 22,
+          zoomControl: false,
+          layers: [satelliteLayer]
+        });
+
+        markersLayer = L.featureGroup().addTo(map);
+
+        // Haritaya tıklanınca açık menüyü kapat
+        map.on('click', () => {
+          toolsDropdown.classList.remove('open');
+        });
+
+        statusBar.innerText = "✅ Harita hazır, veriler yükleniyor...";
+        loadInitialData();
+      } catch (err) {
+        statusBar.style.color = "#d32f2f";
+        statusBar.innerText = "❌ Hata: " + err.message;
+      }
+    }
+
+    // 3. Uydu / Sokak Haritası Geçişi
     function setLayer(type) {
+      if (!map) return;
       const btnSat = document.getElementById('btnSat');
       const btnOsm = document.getElementById('btnOsm');
       if (type === 'sat') {
@@ -195,35 +452,64 @@
       }
     }
 
-    // 3. Dahili EPSG:5254 (TUREF / TM30) -> WGS84 Dönüştürücü (Dış kütüphane gerektirmez)
-    function epsg5254ToWGS84(val1, val2) {
-      const parseCoord = (v) => {
-        if (v === undefined || v === null) return NaN;
-        let s = String(v).trim().replace(/\s/g, '');
-        // Eğer hem nokta hem virgül varsa (örn: 4.546.310,20) noktaları sil, virgülü nokta yap
-        if (s.includes('.') && s.includes(',')) {
+    // 4. Canlı GPS Konumu Bulucu (Saha Kullanımı İçin)
+    function locateUser() {
+      if (!map) return;
+      const gpsBtn = document.getElementById('gpsBtn');
+      gpsBtn.classList.add('gps-active');
+      statusBar.innerText = "📡 GPS konumu alınıyor...";
+
+      map.locate({ setView: true, maxZoom: 20, enableHighAccuracy: true });
+
+      map.once('locationfound', function(e) {
+        if (userLocationMarker) map.removeLayer(userLocationMarker);
+        if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
+
+        userAccuracyCircle = L.circle(e.latlng, {
+          radius: e.accuracy / 2,
+          color: '#1565c0',
+          fillColor: '#2196f3',
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(map);
+
+        userLocationMarker = L.circleMarker(e.latlng, {
+          radius: 8,
+          fillColor: '#1565c0',
+          color: '#fff',
+          weight: 3,
+          fillOpacity: 1
+        }).addTo(map).bindPopup(`<b>📍 Mevcut Konumunuz</b><br>Hassasiyet: ±${Math.round(e.accuracy)} m`).openPopup();
+
+        statusBar.innerText = `📍 Konum bulundu (±${Math.round(e.accuracy)} m)`;
+      });
+
+      map.once('locationerror', function() {
+        gpsBtn.classList.remove('gps-active');
+        statusBar.style.color = "#d32f2f";
+        statusBar.innerText = "⚠️ Konum izni verilmedi veya GPS kapalı.";
+      });
+    }
+
+    // 5. Sayı Çözücü ve EPSG:5254 (TUREF / TM30) -> WGS84 Dönüşüm Motoru
+    function parseNumber(val) {
+      if (val === undefined || val === null) return NaN;
+      let s = String(val).trim().replace(/^["']|["']$/g, '').trim();
+      if (!s || !/^[-+]?[\d.,]+$/.test(s)) return NaN;
+
+      if (s.includes('.') && s.includes(',')) {
+        if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
           s = s.replace(/\./g, '').replace(',', '.');
         } else {
-          s = s.replace(',', '.');
+          s = s.replace(/,/g, '');
         }
-        return parseFloat(s);
-      };
-
-      const c1 = parseCoord(val1);
-      const c2 = parseCoord(val2);
-      if (isNaN(c1) || isNaN(c2)) return null;
-
-      // Türkiye koordinatlarında Yukarı (X) > 3.900.000, Sağa (Y) < 1.000.000'dir
-      let easting, northing;
-      if (c1 > 1000000 && c2 < 1000000) {
-        northing = c1; easting = c2;
-      } else if (c2 > 1000000 && c1 < 1000000) {
-        easting = c1; northing = c2;
-      } else {
-        return null;
+      } else if (s.includes(',')) {
+        s = s.replace(',', '.');
       }
+      return parseFloat(s);
+    }
 
-      // GRS80 Elipsoid Sabitleri (EPSG:5254 / TM30: lon_0 = 30, k_0 = 1, x_0 = 500000, y_0 = 0)
+    function tm30ToWGS84(easting, northing) {
       const a = 6378137.0;
       const f = 1 / 298.257222101;
       const e2 = 2 * f - f * f;
@@ -266,118 +552,169 @@
 
       return {
         lat: latRad * 180.0 / Math.PI,
-        lng: lngRad * 180.0 / Math.PI,
-        easting,
-        northing
+        lng: lngRad * 180.0 / Math.PI
       };
     }
 
-    // 4. Akıllı CSV Okuyucu (Noktalı virgül, virgül veya sekme ayrımını otomatik algılar)
-    function parseAndRenderCSV(csvText) {
+    // 6. Akıllı CSV Çözümleyici ve Haritaya Çizici
+    function parseAndRenderCSV(rawText, sourceName = "Veri") {
+      if (!map) return;
       markersLayer.clearLayers();
       treeIndex = {};
+      lastHighlightedMarker = null;
       let count = 0;
 
-      const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      const lines = rawText.replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length === 0) {
-        statusBar.innerText = "CSV dosyası boş!";
+        statusBar.innerText = "⚠️ Dosya boş!";
         return;
       }
 
-      // Ayraç tespiti (; mi, \t mi, yoksa , mü?)
-      const firstLine = lines[0];
+      const sampleLine = lines[Math.min(1, lines.length - 1)];
       let delimiter = ',';
-      if (firstLine.includes(';')) delimiter = ';';
-      else if (firstLine.includes('\t')) delimiter = '\t';
+      if (sampleLine.includes(';')) delimiter = ';';
+      else if (sampleLine.includes('\t')) delimiter = '\t';
+      else if (!sampleLine.includes(',') && /\s+/.test(sampleLine)) delimiter = /\s+/;
 
-      lines.forEach((line, index) => {
+      lines.forEach((line) => {
         const cols = line.split(delimiter).map(c => c.replace(/^["']|["']$/g, '').trim());
-        if (cols.length < 3) return;
+        if (cols.length < 2) return;
 
-        // Satır içindeki Sağa (200.000-800.000) ve Yukarı (3.900.000-4.900.000) koordinatlarını otomatik bul
-        let id = cols[0];
-        let coord1 = cols[1];
-        let coord2 = cols[2];
-        let species = cols[3] || '-';
+        let easting = null, northing = null, eastIdx = -1, northIdx = -1;
+        let wgsLat = null, wgsLng = null;
 
-        const converted = epsg5254ToWGS84(coord1, coord2);
-        if (!converted) return; // Başlık satırıysa otomatik atlar
+        for (let i = 0; i < cols.length; i++) {
+          const val = parseNumber(cols[i]);
+          if (isNaN(val)) continue;
 
-        const marker = L.circleMarker([converted.lat, converted.lng], {
-          radius: 6,
+          if (val >= 150000 && val <= 850000 && easting === null) {
+            easting = val; eastIdx = i;
+          } else if (val >= 3800000 && val <= 4850000 && northing === null) {
+            northing = val; northIdx = i;
+          } else if (val >= 35 && val <= 43 && wgsLat === null) {
+            wgsLat = val;
+          } else if (val >= 25 && val <= 45 && wgsLng === null) {
+            wgsLng = val;
+          }
+        }
+
+        let finalLat = null, finalLng = null;
+        if (easting !== null && northing !== null) {
+          const conv = tm30ToWGS84(easting, northing);
+          finalLat = conv.lat;
+          finalLng = conv.lng;
+        } else if (wgsLat !== null && wgsLng !== null) {
+          finalLat = wgsLat; finalLng = wgsLng;
+          easting = wgsLng; northing = wgsLat;
+        } else {
+          return;
+        }
+
+        const otherCols = cols.filter((_, i) => i !== eastIdx && i !== northIdx);
+        const treeId = otherCols.length > 0 && otherCols[0] !== '' ? otherCols[0] : String(count + 1);
+        const extraInfo = otherCols.slice(1).join(' | ') || '-';
+
+        const marker = L.circleMarker([finalLat, finalLng], {
+          radius: 7,
           fillColor: '#4caf50',
           color: '#ffffff',
           weight: 2,
           opacity: 1,
-          fillOpacity: 0.9
+          fillOpacity: 0.95
         });
 
-        marker.bindTooltip(id, {
+        marker.bindTooltip(treeId, {
           permanent: true,
           direction: 'top',
-          offset: [0, -6],
+          offset: [0, -7],
           className: 'tree-label'
         });
 
         marker.bindPopup(`
-          <div style="font-size:13px; line-height:1.5;">
-            <strong style="font-size:15px; color:#2e7d32;">🌳 Ağaç No: ${id}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #ddd;">
-            <b>Tür / Bilgi:</b> ${species}<br>
-            <b>Sağa (Y):</b> ${converted.easting.toFixed(2)} m<br>
-            <b>Yukarı (X):</b> ${converted.northing.toFixed(2)} m<br>
-            <b>WGS84:</b> ${converted.lat.toFixed(6)}, ${converted.lng.toFixed(6)}<br>
-            <a href="https://www.google.com/maps?q=${converted.lat},${converted.lng}" target="_blank" style="display:inline-block; margin-top:6px; color:#1565c0; font-weight:600; text-decoration:none;">📍 Google Haritalar'da Aç</a>
+          <div style="font-size:13px; line-height:1.5; min-width:180px;">
+            <strong style="font-size:15px; color:#2e7d32;">🌳 Ağaç No: ${treeId}</strong>
+            <hr style="margin:5px 0; border:0; border-top:1px solid #e0e0e0;">
+            <b>Tür / Bilgi:</b> ${extraInfo}<br>
+            <b>Sağa (Y):</b> ${easting.toFixed(2)} m<br>
+            <b>Yukarı (X):</b> ${northing.toFixed(2)} m<br>
+            <b>WGS84:</b> ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}<br>
+            <a href="https://www.google.com/maps?q=${finalLat},${finalLng}" target="_blank" style="display:inline-block; margin-top:8px; padding:6px 10px; background:#1565c0; color:#fff; border-radius:6px; font-weight:600; text-decoration:none; font-size:12px;">📍 Google Haritalar'da Yol Tarifi</a>
           </div>
         `);
 
         markersLayer.addLayer(marker);
-        treeIndex[id.toLowerCase()] = marker;
+        treeIndex[treeId.toLowerCase()] = marker;
         count++;
       });
 
       if (count > 0) {
-        map.fitBounds(markersLayer.getBounds(), { padding: [40, 40], maxZoom: 19 });
-        statusBar.innerText = `✅ Toplam ${count} ağaç yüklendi (EPSG:5254)`;
+        map.fitBounds(markersLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
+        statusBar.style.color = "#1b5e20";
+        statusBar.innerText = `✅ ${sourceName}: ${count} ağaç yüklendi`;
       } else {
-        statusBar.innerText = `⚠️ CSV okundu ancak geçerli EPSG:5254 koordinatı bulunamadı!`;
+        statusBar.style.color = "#d32f2f";
+        statusBar.innerText = `⚠️ Geçerli EPSG:5254 koordinatı bulunamadı!`;
       }
     }
 
-    // 5. Ağaç Numarası Arama
+    // 7. Ağaç Numarası Arama & Mobil Klavye Kapatma
     function searchTree() {
-      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const query = searchInput.value.trim().toLowerCase();
       if (!query) return;
 
+      // Mobilde aramaya basınca klavyeyi kapat
+      searchInput.blur();
+
       if (lastHighlightedMarker) {
-        lastHighlightedMarker.setStyle({ fillColor: '#4caf50', radius: 6 });
+        lastHighlightedMarker.setStyle({ fillColor: '#4caf50', radius: 7 });
         const el = lastHighlightedMarker.getTooltip()?.getElement();
         if (el) el.classList.remove('highlight-label');
       }
 
-      const targetMarker = treeIndex[query];
-      if (targetMarker) {
-        map.flyTo(targetMarker.getLatLng(), 21, { duration: 0.8 });
-        targetMarker.setStyle({ fillColor: '#d32f2f', radius: 10 });
-        const tooltipEl = targetMarker.getTooltip()?.getElement();
+      const target = treeIndex[query];
+      if (target) {
+        map.flyTo(target.getLatLng(), 21, { duration: 0.7 });
+        target.setStyle({ fillColor: '#d32f2f', radius: 11 });
+        const tooltipEl = target.getTooltip()?.getElement();
         if (tooltipEl) tooltipEl.classList.add('highlight-label');
-        targetMarker.openPopup();
-        lastHighlightedMarker = targetMarker;
+        target.openPopup();
+        lastHighlightedMarker = target;
+        statusBar.style.color = "#1b5e20";
+        statusBar.innerText = `🎯 Ağaç No: ${searchInput.value.trim()} gösteriliyor`;
       } else {
-        alert(`"${document.getElementById('searchInput').value}" numaralı ağaç bulunamadı!`);
+        alert(`"${searchInput.value.trim()}" numaralı ağaç bulunamadı!`);
       }
     }
 
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    function clearSearch() {
+      searchInput.value = '';
+      clearSearchBtn.style.display = 'none';
+      if (lastHighlightedMarker) {
+        lastHighlightedMarker.setStyle({ fillColor: '#4caf50', radius: 7 });
+        const el = lastHighlightedMarker.getTooltip()?.getElement();
+        if (el) el.classList.remove('highlight-label');
+        lastHighlightedMarker.closePopup();
+        lastHighlightedMarker = null;
+      }
+      searchInput.focus();
+    }
+
+    searchInput.addEventListener('input', function() {
+      clearSearchBtn.style.display = this.value.length > 0 ? 'block' : 'none';
+    });
+
+    searchInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') searchTree();
     });
 
     function resetView() {
-      if (markersLayer.getLayers().length > 0) {
-        map.fitBounds(markersLayer.getBounds(), { padding: [40, 40], maxZoom: 19 });
+      searchInput.blur();
+      if (markersLayer && markersLayer.getLayers().length > 0) {
+        map.fitBounds(markersLayer.getBounds(), { padding: [50, 50], maxZoom: 19 });
       }
     }
 
-    // 6. GitHub'daki agaclar.csv Dosyasını Yükle (Önbellek Korumalı)
+    // 8. GitHub'daki CSV Dosyasını Otomatik Çek
     const sampleCSV = `no;saga;yukari;tur
 101;417245.50;4546310.20;Pinus pinea (Fıstık Çamı)
 102;417258.10;4546318.80;Platanus orientalis (Doğu Çınarı)
@@ -385,29 +722,59 @@
 104;417235.90;4546295.60;Cedrus libani (Toros Sediri)
 105;417250.00;4546288.30;Tilia tomentosa (Gümüşi Ihlamur)`;
 
-    fetch('agaclar.csv?t=' + Date.now())
-      .then(res => {
-        if (!res.ok) throw new Error("agaclar.csv bulunamadı");
-        return res.text();
-      })
-      .then(text => {
-        parseAndRenderCSV(text);
-      })
-      .catch(() => {
-        parseAndRenderCSV(sampleCSV);
-        statusBar.innerText = "ℹ️ Örnek veri gösteriliyor (Sağ üstten CSV Seç ile kendi dosyanızı yükleyebilirsiniz)";
-      });
+    async function loadInitialData() {
+      const possibleFiles = ['agaclar.csv', 'Agaclar.csv', 'AGACLAR.csv', 'agaclar.txt'];
+      for (const fileName of possibleFiles) {
+        try {
+          const res = await fetch(fileName + '?t=' + Date.now());
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 5) {
+              parseAndRenderCSV(text, fileName);
+              return;
+            }
+          }
+        } catch (e) {}
+      }
+      parseAndRenderCSV(sampleCSV, "Örnek Veri (⚙️ menüsünden CSV yükleyin)");
+    }
 
-    // 7. Sağ Üstteki "CSV Seç" Butonu ile Bilgisayardan Dosya Yükleme
+    // 9. Veri Yükleme Menüsü ve Modal Kontrolleri
+    function toggleToolsMenu(e) {
+      e.stopPropagation();
+      toolsDropdown.classList.toggle('open');
+    }
+
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
+      toolsDropdown.classList.remove('open');
       const reader = new FileReader();
       reader.onload = function(evt) {
-        parseAndRenderCSV(evt.target.result);
+        parseAndRenderCSV(evt.target.result, file.name);
       };
       reader.readAsText(file, 'UTF-8');
     });
+
+    function openPasteModal() {
+      toolsDropdown.classList.remove('open');
+      document.getElementById('pasteModal').style.display = 'flex';
+    }
+
+    function closePasteModal() {
+      document.getElementById('pasteModal').style.display = 'none';
+    }
+
+    function applyPastedData() {
+      const text = document.getElementById('pasteArea').value;
+      if (text.trim()) {
+        parseAndRenderCSV(text, "Yapıştırılan Veri");
+        closePasteModal();
+      }
+    }
+
+    // Başlat
+    loadLeaflet(0);
   </script>
 </body>
 </html>
